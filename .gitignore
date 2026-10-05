@@ -22,6 +22,7 @@ env/
 *.json
 *.sqlite3
 *.log
+*.xlsx
 
 # Variables d'environnement / Clés API
 .env
