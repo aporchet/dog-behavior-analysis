@@ -24,5 +24,8 @@ env/
 *.log
 *.xlsx
 
+# Modèles
+*.joblib
+
 # Variables d'environnement / Clés API
 .env
