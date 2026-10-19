@@ -1,31 +1,8 @@
-# Python & Byte-code
+data/raw/*
+data/interim/*
+data/processed/*
+models/*
+.cache/
+!**/.gitkeep
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-
-# Environnements virtuels
-.venv/
-venv/
-ENV/
-env/
-
-# VS Code
-.vscode/
-
-# Jupyter Notebooks & Checkpoints
 .ipynb_checkpoints/
-*-checkpoint.ipynb
-
-# Fichiers de données volumineux ou temporaires
-*.csv
-*.json
-*.sqlite3
-*.log
-*.xlsx
-
-# Modèles
-*.joblib
-
-# Variables d'environnement / Clés API
-.env

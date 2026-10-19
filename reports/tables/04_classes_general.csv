@@ -1,0 +1,18 @@
+target,n_fenetres_train,n_fenetres_test,conservee
+Lying chest,15722,4607,True
+Sniffing,15065,4165,True
+Panting,12562,2632,True
+Playing,12545,3945,True
+Trotting,10553,2746,True
+Walking,9864,3099,True
+Sitting,6723,3210,True
+Standing,6319,2234,True
+Eating,2176,195,True
+Pacing,855,390,True
+Drinking,740,431,True
+Shaking,348,141,False
+Carrying object,251,9,False
+Tugging,206,31,False
+Galloping,147,0,False
+Bowing,7,0,False
+Jumping,6,24,False

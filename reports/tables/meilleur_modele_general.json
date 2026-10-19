@@ -1,0 +1,5 @@
+{
+  "task": "general",
+  "experiment": "multi_echelle",
+  "model_name": "XGBoost"
+}
