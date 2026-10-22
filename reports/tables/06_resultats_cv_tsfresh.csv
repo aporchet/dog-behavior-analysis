@@ -1,0 +1,10 @@
+experience,tache,modele,f1_macro_cv_moy,f1_macro_cv_std,f1_macro_train_moy,n_variables,n_variables_retenues,meilleurs_params,duree_s
+approche1_sous_echantillon,general,XGBoost,0.7169098878359758,0.050623420699768884,,282,86,"{'clf__learning_rate': 0.1, 'clf__max_depth': 8, 'clf__n_estimators': 400}",
+approche1_sous_echantillon,general,RandomForest,0.703772175351385,0.04873024807896409,,282,86,"{'clf__max_depth': 15, 'clf__min_samples_leaf': 1, 'clf__n_estimators': 300}",
+approche1_sous_echantillon,general,Dummy_majoritaire,0.01231299246535228,0.0017853011643500503,,282,282,{},
+tsfresh_1s,general,XGBoost,0.6710309500596721,0.018243292774511612,,2128,423,"{'clf__learning_rate': 0.1, 'clf__max_depth': 4, 'clf__n_estimators': 400}",
+tsfresh_1s,general,RandomForest,0.6436631259445698,0.02514887814765072,,2128,423,"{'clf__max_depth': 25, 'clf__min_samples_leaf': 1, 'clf__n_estimators': 300}",
+tsfresh_1s,general,Dummy_majoritaire,0.01231299246535228,0.0017853011643500503,,2128,2128,{},
+approche1+tsfresh,general,XGBoost,0.7289248038344318,0.040457415600628946,,2410,456,"{'clf__learning_rate': 0.1, 'clf__max_depth': 4, 'clf__n_estimators': 400}",
+approche1+tsfresh,general,RandomForest,0.7053112080415298,0.03964169657934453,,2410,456,"{'clf__max_depth': 25, 'clf__min_samples_leaf': 1, 'clf__n_estimators': 300}",
+approche1+tsfresh,general,Dummy_majoritaire,0.01231299246535228,0.0017853011643500503,,2410,2410,{},
