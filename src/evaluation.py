@@ -174,8 +174,15 @@ def compare_general_specific(general_pred: pd.DataFrame, specific_pred: pd.DataF
     s = specific_pred[["window_id", "target", "pred", "behavior_1"]].rename(columns={"pred": "pred_specifique"})
     common = s.merge(g, on="window_id", how="inner")
     common = common[common["behavior_1"] == common["target"]]
-    labels = list(family_classes)
-    out = {"n_fenetres_communes": len(common)}
+    # Classes évaluées = classes de la famille présentes dans la VÉRITÉ des fenêtres communes.
+    # Sans cette restriction, une classe connue du seul modèle spécifique (ex. Galloping, exclue
+    # du modèle général comme classe rare) mais absente des fenêtres communes compte pour un F1
+    # nul dès qu'elle est prédite une fois : le F1 macro du spécifique est alors injustement
+    # écrasé. Une prédiction erronée de cette classe reste comptée comme une erreur (rappel de
+    # la vraie classe).
+    present = set(common["target"])
+    labels = [c for c in family_classes if c in present]
+    out = {"n_fenetres_communes": len(common), "classes_evaluees": ", ".join(labels)}
     for who in ("general", "specifique"):
         m = compute_metrics(common["target"], common[f"pred_{who}"], labels=labels)
         out[f"f1_macro_{who}"] = m["f1_macro"]
