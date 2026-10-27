@@ -29,8 +29,7 @@ def plot_session_signals(
 ):
     """
     Signaux d'un capteur + comportement annoté, pour une séance.
-    On filtre AVANT toute jointure (l'ancienne version fusionnait les 10 M de
-    lignes avec df_dogs à chaque changement du menu déroulant).
+    On filtre avant toute jointure.
     """
     d = moves[(moves["DogID"] == dog_id) & (moves["TestNum"] == test_num)]
     if d.empty:
@@ -76,7 +75,7 @@ def plot_timeline(
     """
     Frise d'une séance : vrais comportements (Behavior_1/2/3, alignés car issus
     du fenêtrage) et prédictions colorées (vert = dans Behavior_1/2/3, rouge
-    sinon). L'axe horizontal est le VRAI temps (t_center) : les fenêtres
+    sinon). L'axe horizontal est le vrai temps (t_center) : les fenêtres
     exclues apparaissent comme des trous, au lieu d'être recollées.
     """
     import plotly.graph_objects as go
@@ -141,7 +140,7 @@ def plot_timeline(
 
 
 # ---------------------------------------------------------------------------
-# UMAP des erreurs (bonus 2)
+# UMAP des erreurs
 # ---------------------------------------------------------------------------
 def umap_embedding(
     X, n_neighbors: int = 30, min_dist: float = 0.1, seed: int = cfg.RANDOM_STATE

@@ -3,19 +3,17 @@ Fenêtrage multi-échelle et extraction de variables (approche 1).
 
 Principe
 --------
-* Les séries sont découpées en SEGMENTS continus : une fenêtre ne peut jamais
+* Les séries sont découpées en segments continus : une fenêtre ne peut jamais
   enjamber une rupture temporelle.
-* Chaque fenêtre est définie par un CŒUR de LABEL_WINDOW_S secondes (1 s), qui
-  porte le label, et par plusieurs ÉCHELLES DE CONTEXTE centrées sur ce même
-  cœur (1 s, 2 s, 4 s). Les comportements lents (renifler, manger) ont besoin
+* Chaque fenêtre est définie par un coeur de LABEL_WINDOW_S secondes (1 s), qui
+  porte le label, et par plusieurs échelles de contexte centrées sur ce même
+  cœur (1 s, 2 s, 4 s). Les comportements lents qui durent dans le temps ont possiblement besoin
   d'un contexte plus long que la marche ou le galop.
-* Toutes les échelles sont calculées sur EXACTEMENT les mêmes fenêtres : on peut
+* Toutes les échelles sont calculées sur exactement les mêmes fenêtres : on peut
   comparer « 1 s seulement » et « multi-échelle » à données identiques.
 * Chaque fenêtre conserve ses métadonnées (chien, séance, segment, temps de
-  début/fin, position dans le CSV) ainsi que Behavior_1/2/3 calculés AU MOMENT
-  de l'extraction. Cela corrige le désalignement de l'ancienne version, qui
-  reconstruisait Behavior_2/3 a posteriori à partir d'un index de ligne faux
-  dès qu'une fenêtre avait été sautée.
+  début/fin, position dans le CSV) ainsi que Behavior_1/2/3 calculés au moment
+  de l'extraction.
 
 Variables par échelle et par signal
 -----------------------------------
@@ -29,6 +27,7 @@ Domaine fréquentiel (sur les 4 normes) : fréquence dominante, énergie,
 entropie spectrale (séparent marche / trot / galop).
 Ratios cou/dos : indépendance des mouvements de tête par rapport au corps.
 """
+
 from __future__ import annotations
 
 import numpy as np
@@ -41,7 +40,16 @@ SPECTRAL = ("fdom", "energie", "entropie")
 NORM_SIGNALS = [f"{s}_norm" for s in cfg.SENSORS]
 DNORM_SIGNALS = [f"{s}_dnorm" for s in cfg.SENSORS]
 SIGNALS = cfg.SENSOR_COLUMNS + NORM_SIGNALS + DNORM_SIGNALS
-META_COLUMNS = ["window_id", "DogID", "TestNum", "segment", "t_start", "t_center", "t_end", "row_start"]
+META_COLUMNS = [
+    "window_id",
+    "DogID",
+    "TestNum",
+    "segment",
+    "t_start",
+    "t_center",
+    "t_end",
+    "row_start",
+]
 
 
 def scale_tag(scale_s: float) -> str:
@@ -55,7 +63,9 @@ def compute_signals(axes: np.ndarray, fs: int = cfg.SAMPLING_RATE) -> np.ndarray
     """axes : (n, 12) dans l'ordre de cfg.SENSOR_COLUMNS -> (n, 20) signaux."""
     axes = axes.astype(np.float32, copy=False)
     norms = np.sqrt((axes.reshape(len(axes), len(cfg.SENSORS), 3) ** 2).sum(axis=2))
-    dnorms = np.diff(norms, axis=0, prepend=norms[:1]) * fs  # unité : (g ou °/s) par seconde
+    dnorms = (
+        np.diff(norms, axis=0, prepend=norms[:1]) * fs
+    )  # unité : (g ou °/s) par seconde
     return np.concatenate([axes, norms, dnorms], axis=1).astype(np.float32)
 
 
@@ -73,8 +83,12 @@ def find_segments(t: np.ndarray, fs: int = cfg.SAMPLING_RATE):
 def _stats_features(W: np.ndarray, tag: str) -> dict:
     """W : (n_fenêtres, L, n_signaux)."""
     out = {}
-    agg = {"mean": W.mean(axis=1), "std": W.std(axis=1),
-           "min": W.min(axis=1), "max": W.max(axis=1)}
+    agg = {
+        "mean": W.mean(axis=1),
+        "std": W.std(axis=1),
+        "min": W.min(axis=1),
+        "max": W.max(axis=1),
+    }
     for stat, values in agg.items():
         for j, sig in enumerate(SIGNALS):
             out[f"{sig}_{stat}_{tag}"] = values[:, j]
@@ -87,7 +101,7 @@ def _spectral_features(Wn: np.ndarray, tag: str, fs: int) -> dict:
     x = Wn - Wn.mean(axis=1, keepdims=True)
     power = np.abs(np.fft.rfft(x, axis=1)) ** 2
     freqs = np.fft.rfftfreq(L, d=1.0 / fs)
-    power, freqs = power[:, 1:, :], freqs[1:]          # on retire la composante continue
+    power, freqs = power[:, 1:, :], freqs[1:]  # on retire la composante continue
     total = power.sum(axis=1)
     p = power / (total[:, None, :] + 1e-12)
     entropy = -(p * np.log(p + 1e-12)).sum(axis=1) / np.log(power.shape[1])
@@ -103,8 +117,10 @@ def _ratio_features(W: np.ndarray, tag: str) -> dict:
     idx = {s: SIGNALS.index(s) for s in NORM_SIGNALS}
     m = W.mean(axis=1)
     return {
-        f"ratio_A_cou_dos_{tag}": m[:, idx["ANeck_norm"]] / (m[:, idx["ABack_norm"]] + 1e-6),
-        f"ratio_G_cou_dos_{tag}": m[:, idx["GNeck_norm"]] / (m[:, idx["GBack_norm"]] + 1e-6),
+        f"ratio_A_cou_dos_{tag}": m[:, idx["ANeck_norm"]]
+        / (m[:, idx["ABack_norm"]] + 1e-6),
+        f"ratio_G_cou_dos_{tag}": m[:, idx["GNeck_norm"]]
+        / (m[:, idx["GBack_norm"]] + 1e-6),
     }
 
 
@@ -124,14 +140,16 @@ def _mode(counts: np.ndarray, labels: np.ndarray):
 # ---------------------------------------------------------------------------
 # Construction du jeu de fenêtres
 # ---------------------------------------------------------------------------
-def build_windows(moves: pd.DataFrame,
-                  scales_s=cfg.SCALES_S,
-                  label_window_s: float = cfg.LABEL_WINDOW_S,
-                  step_s: float = cfg.STEP_S,
-                  families: dict = cfg.FAMILIES,
-                  fs: int = cfg.SAMPLING_RATE,
-                  batch_size: int = 2048,
-                  verbose: bool = True) -> pd.DataFrame:
+def build_windows(
+    moves: pd.DataFrame,
+    scales_s=cfg.SCALES_S,
+    label_window_s: float = cfg.LABEL_WINDOW_S,
+    step_s: float = cfg.STEP_S,
+    families: dict = cfg.FAMILIES,
+    fs: int = cfg.SAMPLING_RATE,
+    batch_size: int = 2048,
+    verbose: bool = True,
+) -> pd.DataFrame:
     """
     Construit une ligne par fenêtre (annotée ou non ; le filtrage selon la
     pureté du label se fait ensuite, tâche par tâche).
@@ -146,19 +164,30 @@ def build_windows(moves: pd.DataFrame,
         dans Behavior_2) ;
       - variables : voir le docstring du module.
     """
-    moves = moves.sort_values(cfg.SESSION_KEYS + ["t_sec"], kind="stable").reset_index(drop=True)
+    moves = moves.sort_values(cfg.SESSION_KEYS + ["t_sec"], kind="stable").reset_index(
+        drop=True
+    )
     n_core = int(round(label_window_s * fs))
     step = int(round(step_s * fs))
     scale_lengths = {scale_tag(s): int(round(s * fs)) for s in scales_s}
     half_max = max(max(scale_lengths.values()), n_core) // 2
 
     # Encodage commun des labels des trois colonnes
-    all_labels = sorted(set().union(*[set(moves[c].dropna().unique()) for c in cfg.BEHAVIOR_COLUMNS]))
+    all_labels = sorted(
+        set().union(*[set(moves[c].dropna().unique()) for c in cfg.BEHAVIOR_COLUMNS])
+    )
     label_array = np.array(all_labels, dtype=object)
-    codes = np.stack([pd.Categorical(moves[c], categories=all_labels).codes
-                      for c in cfg.BEHAVIOR_COLUMNS], axis=1).astype(np.int16)
-    fam_idx = {f: np.array([all_labels.index(l) for l in labs if l in all_labels], dtype=int)
-               for f, labs in families.items()}
+    codes = np.stack(
+        [
+            pd.Categorical(moves[c], categories=all_labels).codes
+            for c in cfg.BEHAVIOR_COLUMNS
+        ],
+        axis=1,
+    ).astype(np.int16)
+    fam_idx = {
+        f: np.array([all_labels.index(l) for l in labs if l in all_labels], dtype=int)
+        for f, labs in families.items()
+    }
 
     axes_all = moves[cfg.SENSOR_COLUMNS].to_numpy(np.float32)
     t_all = moves["t_sec"].to_numpy()
@@ -177,24 +206,37 @@ def build_windows(moves: pd.DataFrame,
             signals = compute_signals(axes_all[a:b], fs)
             seg_codes = codes[a:b]
             for k in range(0, len(centers), batch_size):
-                c = centers[k:k + batch_size]
+                c = centers[k : k + batch_size]
                 feats = {}
                 for tag, L in scale_lengths.items():
                     idx = c[:, None] + np.arange(-(L // 2), L - L // 2)[None, :]
                     W = signals[idx]
                     feats.update(_stats_features(W, tag))
-                    feats.update(_spectral_features(W[:, :, [SIGNALS.index(s) for s in NORM_SIGNALS]], tag, fs))
+                    feats.update(
+                        _spectral_features(
+                            W[:, :, [SIGNALS.index(s) for s in NORM_SIGNALS]], tag, fs
+                        )
+                    )
                     feats.update(_ratio_features(W, tag))
 
-                core = c[:, None] + np.arange(-(n_core // 2), n_core - n_core // 2)[None, :]
+                core = (
+                    c[:, None]
+                    + np.arange(-(n_core // 2), n_core - n_core // 2)[None, :]
+                )
                 core_codes = seg_codes[core]  # (nw, n_core, 3)
-                counts = [_count_labels(core_codes[:, :, j], len(all_labels)) for j in range(3)]
+                counts = [
+                    _count_labels(core_codes[:, :, j], len(all_labels))
+                    for j in range(3)
+                ]
                 meta = {
                     "window_id": np.arange(window_counter, window_counter + len(c)),
-                    "DogID": np.full(len(c), dog), "TestNum": np.full(len(c), test),
+                    "DogID": np.full(len(c), dog),
+                    "TestNum": np.full(len(c), test),
                     "segment": np.full(len(c), seg_id),
-                    "t_start": t_all[a + core[:, 0]], "t_center": t_all[a + c],
-                    "t_end": t_all[a + core[:, -1]], "row_start": a + core[:, 0],
+                    "t_start": t_all[a + core[:, 0]],
+                    "t_center": t_all[a + c],
+                    "t_end": t_all[a + core[:, -1]],
+                    "row_start": a + core[:, 0],
                 }
                 window_counter += len(c)
                 lab1, n1 = _mode(counts[0], label_array)
@@ -205,17 +247,25 @@ def build_windows(moves: pd.DataFrame,
                 meta["behavior_3"] = _mode(counts[2], label_array)[0]
                 total = counts[0] + counts[1] + counts[2]
                 for fam, fidx in fam_idx.items():
-                    fl, fn = _mode(total[:, fidx], label_array[fidx]) if len(fidx) else (np.full(len(c), None), np.zeros(len(c)))
+                    fl, fn = (
+                        _mode(total[:, fidx], label_array[fidx])
+                        if len(fidx)
+                        else (np.full(len(c), None), np.zeros(len(c)))
+                    )
                     meta[f"{fam}_label"] = fl
                     meta[f"{fam}_purity"] = np.minimum(fn / n_core, 1.0)
                 block = pd.DataFrame(meta)
-                feat_df = pd.DataFrame({k2: v.astype(np.float32) for k2, v in feats.items()})
+                feat_df = pd.DataFrame(
+                    {k2: v.astype(np.float32) for k2, v in feats.items()}
+                )
                 blocks.append(pd.concat([block, feat_df], axis=1))
         if verbose:
             print(f"  chien {dog} / test {test} : {window_counter:,} fenêtres cumulées")
 
     windows = pd.concat(blocks, ignore_index=True)
-    for col in ["behavior_1", "behavior_2", "behavior_3"] + [f"{f}_label" for f in families]:
+    for col in ["behavior_1", "behavior_2", "behavior_3"] + [
+        f"{f}_label" for f in families
+    ]:
         windows[col] = windows[col].astype("object").where(windows[col].notna(), None)
     return windows
 
@@ -224,24 +274,35 @@ def build_windows(moves: pd.DataFrame,
 # Jeux de variables
 # ---------------------------------------------------------------------------
 def all_feature_columns(windows: pd.DataFrame) -> list:
-    meta = set(META_COLUMNS) | {"behavior_1", "purity_1", "labelled_1", "behavior_2", "behavior_3"}
-    meta |= {c for c in windows.columns if c.endswith("_label") or c.endswith("_purity")}
+    meta = set(META_COLUMNS) | {
+        "behavior_1",
+        "purity_1",
+        "labelled_1",
+        "behavior_2",
+        "behavior_3",
+    }
+    meta |= {
+        c for c in windows.columns if c.endswith("_label") or c.endswith("_purity")
+    }
     return [c for c in windows.columns if c not in meta]
 
 
 def feature_set(windows: pd.DataFrame, name: str) -> list:
     """
     Jeux de variables comparés dans le projet :
-      - 'ancienne_baseline_1s' : moyenne et écart-type sur 1 s + ratios
-        (réplique de la première version, 42 variables) ;
+      - 'ancienne_baseline_1s' : moyenne et écart-type sur 1 s + ratios ;
       - 'complet_1s' : toutes les variables à 1 s (+ min/max et fréquentiel) ;
       - 'multi_echelle' : toutes les variables à toutes les échelles.
     """
     cols = all_feature_columns(windows)
     tag1 = scale_tag(1.0)
     if name == "ancienne_baseline_1s":
-        return [c for c in cols if c.endswith(tag1)
-                and (c.startswith("ratio_") or any(f"_{s}_" in c for s in ("mean", "std")))]
+        return [
+            c
+            for c in cols
+            if c.endswith(tag1)
+            and (c.startswith("ratio_") or any(f"_{s}_" in c for s in ("mean", "std")))
+        ]
     if name == "complet_1s":
         return [c for c in cols if c.endswith(tag1)]
     if name == "multi_echelle":

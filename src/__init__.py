@@ -10,5 +10,6 @@ Modules :
     smoothing         bonus : lissage temporel des prédictions
     conformal         bonus : prédiction conforme (maison + MAPIE)
     tsfresh_features  approche de comparaison tsfresh
+    presentation      fonctions d'affiche du notebook de présentation
     viz               figures (signaux, frises, UMAP)
 """
